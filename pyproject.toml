@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "synthetic-data"
+version = "0.1.0"
+description = ""
+authors = ["Andres Gonzalez <andres@aihealth.sg>"]
+readme = "README.md"
+packages = [{include = "synthetic_data"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Faker = "^29.0.0"
+numpy = "^2.1.1"
+marshmallow = "^3.22.0"
+pandas = "^2.2.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
