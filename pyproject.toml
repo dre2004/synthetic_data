@@ -12,6 +12,9 @@ Faker = "^29.0.0"
 numpy = "^2.1.1"
 marshmallow = "^3.22.0"
 pandas = "^2.2.3"
+tqdm = "^4.66.5"
+snakeviz = "^2.2.0"
+pyinstrument = "^4.7.3"
 
 
 [build-system]

@@ -1,9 +1,12 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 
 from faker import Faker
 import numpy as np
+from tqdm import tqdm
+
+from pyinstrument import Profiler
 
 from lib.riskcalculator import estimate_health_risk
 from lib.utils import (prepare_cvd_input, prepare_hypertension_input)
@@ -13,137 +16,116 @@ from lib.utils import (prepare_cvd_input, prepare_hypertension_input)
 # Adult male height is normally distributed with a standard deviation of about 2.5 inches (6.35 cm)
 # while female height is normally distributed with a standard deviation of about 2.2 inches (5.59 cm).
 
-class Patient:
-    patient_id: str
-    gender: str           # CVD, HYP
-    first_name: str
-    last_name: str
-    age: int              # CVD, HYP
-    height: float
-    weight: float
-    bmi_value: float      # CVD, HYP
-    bmi_rating: str
-    bp_systolic: float    # HYP
-    bp_diastolic: float   # HYP
-    bp_rating: str
-    client_timestamp: datetime
-    server_timestamp: datetime
 
-    # health risk fields
-    is_smoker: bool                            # HYP
-    waist_circumference: float                 # CVD
-    diabetes: bool                             # HYP
-    diabetes_family_history: bool
-    stroke_parents_siblings_before_65: bool    # CVD
-    hypertension_medication: bool              # CVD (antihypertensives)
-    hypertension_diagnosed: bool               # CVD (hypertension_medication)
-    hypertension_family_history: bool
-    exercise: int                              # HYP
-    exercise_hours: int                        # HYP
+# Helpers
+def random_date(start, end):
+    """
+    This function will return a random datetime between two datetime
+    objects.
+    """
+    delta = end - start
+    int_delta = (delta.days * 24 * 60 * 60) + delta.seconds
+    random_second = random.randrange(int_delta)
+    return start + timedelta(seconds=random_second)
 
 
-    # Optional fields
-    diabetes_on_medication: bool
-    diabetes_type: int
-    ckd_diagnosed: bool
+np.random.seed(42)
+faker = Faker()
+faker.seed_instance(42)
 
-    def estimate_health_risk(self) -> None:
-        # CKD fields
-        # fields = {
-        #     'gender': {'type': str, 'default': 'gender'},
-        #     'age': {'type': int, 'default': 'age'},
-        #     'bmi_model': {'type': float, 'default': 'bmi_model'},
-        #     'waist_circumference': {'type': float, 'default': 'waist_circumference'},
-        #     'antihypertensives': {'type': str, 'default': 'hypertension_diagnosed'},
-        #     'hypertension_on_medication': {'type': str, 'default': 'hypertension_medication'},
-        #     'mi_or_stroke_family_history': {'type': str, 'default': 'stroke_parents_siblings_before_65'},
-        #     'is_smoker': {'type': bool, 'default': 'is_smoker'},
-        # }
+def generate_population(random_seed: int, num_samples: int, split: float, age_min: int, age_max: int,
+                        height: float, weight: float) -> list:
 
-        raw_cvd_input = {
-            "gender": self.gender,
-            "age": self.age,
-            "bmi_model": self.bmi_value,
-            "waist_circumference": self.waist_circumference,
-            "hypertension_diagnosed": self.hypertension_diagnosed,
-            "hypertension_medication": self.hypertension_medication,
-            "stroke_parents_siblings_before_65": self.stroke_parents_siblings_before_65,
-            "is_smoker": self.is_smoker,
+    male_samples: float = float(num_samples//split)
+    #male_weights = np.random.normal(63.6, 6.35, male_samples)
+
+    female_samples = num_samples//1-split
+    #female_ages = np.random.normal(154.1, 5.59, female_samples)
+    #female_weights = np.random.normal(59.8, 26.05, female_samples)
+
+    samples = []
+    for i in tqdm(range(num_samples)):
+
+        exercise = bool(random.getrandbits(1))
+        gender = np.random.choice(["M", "F"], p=[split, 1-split])
+        record = {
+            "patient_id": faker.uuid4(),
+            "gender": gender,
+            "first_name": faker.first_name_male() if gender == "M" else Faker().first_name_female(),
+            "last_name": faker.last_name(),
+            "age": faker.random_int(min=age_min, max=age_max),
+            "height": faker.random_int(min=100, max=178),
+            "weight": faker.random_int(min=40, max=160),
+            "bmi_value": round(weight / (height * height), 2),
+            "bmi_model": round(weight / (height * height), 2),
+            "bmi_rating": 0,
+            "bp_systolic": np.random.uniform(size=1, low=90, high=140), # Fix this
+            "bp_diastolic": np.random.uniform(size=1, low=90, high=140), # fix this
+            "bp_rating": 0, # fix this
+            "is_smoker": bool(random.getrandbits(1)),
+            "waist_circumference": np.random.uniform(size=1, low=90, high=140),
+            "diabetes": bool(random.getrandbits(1)),
+            "diabetes_family_history": bool(random.getrandbits(1)),
+            "stroke_parents_siblings_before_65": bool(random.getrandbits(1)),
+            "hypertension_medication": bool(random.getrandbits(1)),
+            "hypertension_diagnosed": bool(random.getrandbits(1)),
+            "hypertension_family_history": bool(random.getrandbits(1)),
+            "exercise": exercise,
+            "exercise_hours": faker.random_int(min=1, max=10) if exercise else 0,
+            "diabetes_on_medication": bool(random.getrandbits(1)),
+            "diabetes_type": random.choice(["1", "2"]),
+            "ckd_diagnosed": bool(random.getrandbits(1)),
+            "client_timestamp": 0,
+            "server_timestamp": 0,
         }
 
-        cvd_input = prepare_cvd_input(raw_cvd_input)
+    return samples
+
+def get_hr(gender: str, age: int, bmi_value: float, waist_circumference: float,
+                         hypertension_diagnosed: bool, hypertension_medication: bool,
+                         stroke_parents_siblings_before_65: bool,
+                         is_smoker: bool, exercise: bool, exercise_hours: int, diabetes: bool,
+                         hypertension_family_history: bool, diabetes_on_medication: bool,
+                         bp_systolic: float, bp_diastolic: float) -> dict:
+    raw_cvd_input = {
+        "gender": gender,
+        "age": age,
+        "bmi_model": bmi_value,
+        "waist_circumference": waist_circumference,
+        "hypertension_diagnosed": hypertension_diagnosed,
+        "hypertension_medication": hypertension_medication,
+        "stroke_parents_siblings_before_65": stroke_parents_siblings_before_65,
+        "is_smoker": is_smoker,
+    }
+
+    cvd_input = prepare_cvd_input(raw_cvd_input)
+
+    raw_hyp_input = {
+        "age": age,
+        "is_smoker": is_smoker,
+        "gender": gender,
+        "exercise": exercise,
+        "exercise_hours": exercise_hours,
+        "hypertension_family_history": hypertension_family_history,
+        "bmi_model": bmi_value,
+        "diabetes_currently": diabetes,
+        "blood_pressure_systolic": bp_systolic,
+        "blood_pressure_diastolic": bp_diastolic,
+    }
+
+    hyp_input = prepare_hypertension_input(raw_hyp_input)
+
+    return estimate_health_risk(hyp_input, cvd_input)
+
+def do_the_do():
+    pop = generate_population(42, 35_000, 0.45, 25, 85,
+                              height=159.1, weight=68.1)
 
 
-        # Hypertension payload
-        # fields = {
-        #     'age': {'type': int, 'default_name': 'age', 'default_value': ''},
-        #     'is_smoker': {'type': bool, 'default_name': 'is_smoker', 'default_value': False},
-        #     'gender': {'type': str, 'default_name': 'gender', 'default_value': ''},
-        #     'exercise': {'type': str, 'default_name': 'exercise', 'default_value': ''},
-        #     'exercise_hours': {'type': int, 'default_name': 'exercise_hours', 'default_value': 0},
-        #     'hypertension_family_history': {'type': str, 'default_name': 'hypertension_family_history',
-        #                                     'default_value': ''},
-        #     'bmi_model': {'type': float, 'default_name': 'bmi_model', 'default_value': 0.0},
-        #     'diabetes_currently': {'type': str, 'default_name': 'diabetes', 'default_value': ''},
-        #     'blood_pressure_systolic': {'type': float, 'default_name': 'm_0_obs_1_arm_left_systolic',
-        #                                 'default_value': 0.0},
-        #     'blood_pressure_diastolic': {'type': float, 'default_name': 'm_0_obs_1_arm_left_diastolic',
-        #                                  'default_value': 0.0},
-        # }
+with Profiler(interval=0.1) as p:
+    do_the_do()
 
-        raw_hyp_input = {
-            "age": self.age,
-            "is_smoker": self.is_smoker,
-            "gender": self.gender,
-            "exercise": self.exercise,
-            "exercise_hours": self.exercise_hours,
-            "hypertension_family_history": self.hypertension_family_history,
-            "bmi_model": self.bmi_value,
-            "diabetes_currently": self.diabetes,
-            "blood_pressure_systolic": self.bp_systolic,
-            "blood_pressure_diastolic": self.bp_diastolic,
-        }
-
-        hyp_input = prepare_hypertension_input(raw_hyp_input)
-
-
-def generate_population(random_seed: int, num_samples: int) -> None:
-
-    male_num = num_samples//2
-    male_ages = np.random.normal(164.0, 6.35, male_num)
-    male_weights = np.random.normal(63.6, 6.35, male_num)
-
-    female_num = num_samples//2
-    female_ages = np.random.normal(154.1, 5.59, female_num)
-    female_weights = np.random.normal(59.8, 26.05, male_num)
-
-
-def new_patient(random_seed: int) -> Patient:
-    np.random.seed(random_seed)
-    Faker().seed_instance(random_seed)
-
-    p = Patient()
-    p.patient_id = Faker().uuid4()
-    p.gender = np.random.choice(["M", "F"], p=[0.5, 0.5])
-    p.first_name = Faker().first_name_male() if p.gender == "M" else Faker().first_name_female()
-    p.last_name = Faker().last_name()
-    p.age = Faker().random_int(min=25, max=85)
-    p.height = round(random.uniform(1.4, 1.82), 2)
-    p.weight = round(random.uniform(40, 160), 2)
-    p.bmi_value = round(p.weight / (p.height * p.height), 2)
-    return p
-
-
-user1 = new_patient(random_seed=10)
-print(user1.patient_id)
-print(user1.first_name)
-print(user1.last_name)
-print(user1.gender)
-print(user1.age)
-print(user1.height)
-print(user1.weight)
-print(user1.bmi_value)
-#user1.estimate_health_risk()
+p.print()
 
 # Average heights by country
 # https://en.wikipedia.org/wirecord.py:136ki/Average_human_height_by_country
