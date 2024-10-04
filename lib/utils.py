@@ -267,8 +267,8 @@ def prepare_hypertension_input(user_data: dict, override_fields: dict = None) ->
         'hypertension_family_history': {'type': str, 'default_name': 'hypertension_family_history', 'default_value': ''},
         'bmi_model': {'type': float, 'default_name': 'bmi_model', 'default_value': 0.0},
         'diabetes_currently': {'type': str, 'default_name': 'diabetes', 'default_value': ''},
-        'blood_pressure_systolic': {'type': float, 'default_name': 'm_0_obs_1_arm_left_systolic', 'default_value': 0.0},
-        'blood_pressure_diastolic': {'type': float, 'default_name': 'm_0_obs_1_arm_left_diastolic', 'default_value': 0.0},
+        'blood_pressure_systolic': {'type': float, 'default_name': 'blood_pressure_systolic', 'default_value': 0.0},
+        'blood_pressure_diastolic': {'type': float, 'default_name': 'blood_pressure_diastolic', 'default_value': 0.0},
     }
 
     input_data = {}

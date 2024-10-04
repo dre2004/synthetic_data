@@ -1,5 +1,6 @@
 import logging
 import sys
+from logging import exception
 
 from models.aggregate import aggregate_health_risk
 from models.cardiometabolic import estimate_cardiometabolic_risk
@@ -11,7 +12,7 @@ logging.getLogger().addHandler(logging.StreamHandler())
 logger = logging.getLogger(__name__)
 
 
-def estimate_health_risk(hypertension_questions: dict, cvd_questions: dict, debug: bool = False):
+def estimate_health_risk(hypertension_questions: dict, cvd_questions: dict, debug: bool = False) -> dict:
     response = {
         "cvd_risk_score": -1,
         "hypertension_risk_score": -1,
@@ -26,19 +27,17 @@ def estimate_health_risk(hypertension_questions: dict, cvd_questions: dict, debu
             if hypertension_risk is not None:
                 response["hypertension_risk_score"] = hypertension_risk
                 response["hyp_absolute_score"] = abs_hyp_score
-        except:
+        except Exception as e:
             if debug:
-                logger.warning(
-                    "Failed to estimate hypertension risk, will skip. {0}".format(
-                        sys.exc_info()[0]
-                    )
-                )
+                logger.warning(f"record: {hypertension_questions}")
+                logger.warning(f"Failed to estimate hypertension risk, will skip. {sys.exc_info()[0]} ({e})")
 
     cardio_metabolic_risk = None
     if cvd_questions:
         try:
             abs_score, cardio_metabolic_risk = estimate_cardiometabolic_risk(cvd_questions)
-            print("ABS SCORE: ", abs_score)
+            if debug:
+                print("ABS SCORE: ", abs_score)
             if cardio_metabolic_risk is not None:
                 response["ckd_risk_score"] = cardio_metabolic_risk["ckd"]
                 response["cvd_risk_score"] = cardio_metabolic_risk["cvd"]

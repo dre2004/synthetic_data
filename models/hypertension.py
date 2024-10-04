@@ -109,10 +109,22 @@ def _hypertension_score(
 
 
 def estimate_hypertension_risk(questions):
+    # Error handling
+    assert "age" in questions.keys(), "missing age field"
+    assert "is_smoker" in questions.keys(), "missing is_smoker field"
+    assert "gender" in questions.keys(), "missing gender field"
+    assert "exercise" in questions.keys(), "missing gender field"
+    assert "bmi_model" in questions.keys(), "missing bmi_model field"
+    assert "diabetes_currently" in questions.keys(), "missing has_diabetes field"
+    assert "blood_pressure_systolic" in questions.keys(), "missing systolic_bp field"
+    assert "blood_pressure_diastolic" in questions.keys(), "missing diastolic_bp field"
+
+
     age = int(questions.get(HypertensionFields.age))
 
     is_smoker = None
     exercise = None
+
 
     if HypertensionFields.is_smoker in questions:
         is_smoker = strict_bool(questions.get(HypertensionFields.is_smoker))
