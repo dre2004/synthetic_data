@@ -9,12 +9,15 @@ packages = [{include = "synthetic_data"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 Faker = "^29.0.0"
-numpy = "^2.1.1"
 marshmallow = "^3.22.0"
-pandas = "^2.2.3"
 tqdm = "^4.66.5"
 snakeviz = "^2.2.0"
 pyinstrument = "^4.7.3"
+jupyterlab = "^4.2.5"
+jupyter-summarytools = "^0.2.3"
+sweetviz = "^2.3.1"
+pandas = "^2.2.3"
+numpy = "1.26.4"
 
 
 [build-system]
