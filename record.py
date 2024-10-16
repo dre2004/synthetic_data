@@ -92,12 +92,13 @@ def generate_population(num_samples: int, split: float, age_min: int, age_max: i
             random_visits: int = random.randint(1, 7)  # Number of visits for the patient
             i_exercise = bool(random.getrandbits(1))
             i_gender = np.random.choice(["M", "F"], p=[split, 1-split]).item()
-            i_height = faker.random_int(min=130, max=190)
-            i_weight = faker.random_int(min=40, max=160)
+            i_height = faker.random_int(min=160, max=190)
+            i_weight = faker.random_int(min=60, max=180)
             i_first_visit_date = random_date(date_start, date_end)
             hospital = hosp["name"]
             coe = np.random.choice(["CoE 1", "CoE 2", "CoE 3", "CoE 4"], p=[0.4, 0.17, 0.2, 0.23]).item()
             i_bmi = round(i_weight / ((i_height/100) ** 2), 2)
+            bp_measurement = bias_bp_ranges()
 
             # Create record
             record = {
@@ -114,8 +115,8 @@ def generate_population(num_samples: int, split: float, age_min: int, age_max: i
                 "bmi_model_value": i_bmi,
                 "bmi_range": "",
                 "bmi_range_model": "",
-                "blood_pressure_systolic": np.random.uniform(size=1, low=100, high=200)[0].astype(int).item(),
-                "blood_pressure_diastolic": np.random.uniform(size=1, low=70, high=120)[0].astype(int).item(),
+                "blood_pressure_systolic": bp_measurement["systolic"],
+                "blood_pressure_diastolic": bp_measurement["systolic"],
                 "blood_pressure_range": "",
                 "is_smoker": bool(random.getrandbits(1)),
                 "waist_circumference": round(np.random.normal(119.50, 40.56), 2),
@@ -223,6 +224,73 @@ def generate_population(num_samples: int, split: float, age_min: int, age_max: i
 
     return samples
 
+
+def bias_bp_ranges() -> dict:
+    """
+    Returns a biased set of blood pressure values for systolic and diastolic
+    :return:
+    """
+
+    #    if bp_systolic < 120 and bp_diastolic < 80:
+    #        return BP_RATING_NORMAL
+    #    elif 120 <= bp_systolic < 129 and bp_diastolic < 80:
+    #        return BP_RATING_ELEVATED
+    #    elif 130 <= bp_systolic < 139 or 80 <= bp_diastolic < 89:
+    #        return BP_RATING_HYPERTENSION_STAGE1
+    #    elif bp_systolic >= 140 or bp_diastolic >= 90:
+    #        return BP_RATING_HYPERTENSION_STAGE2
+    #    elif bp_systolic > 180 or bp_diastolic > 120:
+    #        return BP_RATING_HYPERTENSION_CRISIS
+
+    #    return BP_RATING_UNCLASSIFIED
+
+    #thresholds = [0.05, 0.09, 0.28, 0.50, 0.08]
+    thresholds = [0.48, 0.06, 0.01, 0.22, 0.13, 0.10]
+
+    u = np.random.choice(thresholds, p=thresholds).item()
+    if u <= thresholds[0]:
+        NORMAL_RANGE_SYS = [110, 120]
+        NORMAL_RANGE_DIA = [70, 80]
+
+        systolic = random.randint(NORMAL_RANGE_SYS[0], NORMAL_RANGE_SYS[1])
+        diastolic = random.randint(NORMAL_RANGE_DIA[0], NORMAL_RANGE_DIA[1])
+        return {"systolic": systolic, "diastolic": diastolic}
+
+    if u <= thresholds[1]:
+        ELEVATED_RANGE_SYS = [120, 129]
+        ELEVATED_RANGE_DIA = [70, 80]
+
+        systolic = random.randint(ELEVATED_RANGE_SYS[0], ELEVATED_RANGE_SYS[1])
+        diastolic = random.randint(ELEVATED_RANGE_DIA[0], ELEVATED_RANGE_DIA[1])
+        return {"systolic": systolic, "diastolic": diastolic}
+
+    if u <= thresholds[2]:
+        HYP_S1_RANGE_SYS = [130, 139]
+        HYP_S1_RANGE_DIA = [80, 89]
+
+        systolic = random.randint(HYP_S1_RANGE_SYS[0], HYP_S1_RANGE_SYS[1])
+        diastolic = random.randint(HYP_S1_RANGE_DIA[0], HYP_S1_RANGE_DIA[1])
+        return {"systolic": systolic, "diastolic": diastolic}
+
+    if u <= thresholds[3]:
+        HYP_S2_RANGE_SYS = [140, 179]
+        HYP_S2_RANGE_DIA = [90, 119]
+
+        systolic = random.randint(HYP_S2_RANGE_SYS[0], HYP_S2_RANGE_SYS[1])
+        diastolic = random.randint(HYP_S2_RANGE_DIA[0], HYP_S2_RANGE_DIA[1])
+        return {"systolic": systolic, "diastolic": diastolic}
+
+    if u <= thresholds[4]:
+        HYP_S3_RANGE_SYS = [180, 199]
+        HYP_S3_RANGE_DIA = [120, 139]
+
+        systolic = random.randint(HYP_S3_RANGE_SYS[0], HYP_S3_RANGE_SYS[1])
+        diastolic = random.randint(HYP_S3_RANGE_DIA[0], HYP_S3_RANGE_DIA[1])
+        return {"systolic": systolic, "diastolic": diastolic}
+
+
+
+
 def get_hr(record: dict) -> dict:
     raw_cvd_input = {
         "gender": record["gender"],
@@ -265,10 +333,10 @@ def diagnosis_chance(record: dict, ncd_name: str) -> bool:
     :return:
     """
     if record[f"{ncd_name}_risk_rating"] in [NCD_RISK_RATING_VERY_HIGH, NCD_RISK_RATING_HIGH]:
-        return np.random.choice([True, False], p=[0.5, 0.5]).item()
+        return np.random.choice([True, False], p=[0.13, 0.87]).item()
 
     if record[f"{ncd_name}_risk_rating"] in [NCD_RISK_RATING_MEDIUM]:
-        return np.random.choice([True, False], p=[0.2, 0.8]).item()
+        return np.random.choice([True, False], p=[0.05, 0.95]).item()
 
     return False
 
@@ -372,16 +440,18 @@ def _calc_hypertension_medication(hypertension_diagnosed: bool, bp_range: str) -
 
     if bp_range == BP_RATING_HYPERTENSION_CRISIS:
         if hypertension_diagnosed:
-            return np.random.choice([True, False], p=[0.89, 0.11]).item()
+            return np.random.choice([True, False], p=[0.11, 0.89]).item()
     elif bp_range == BP_RATING_HYPERTENSION_STAGE2:
         if hypertension_diagnosed:
-            return np.random.choice([True, False], p=[0.89, 0.11]).item()
+            return np.random.choice([True, False], p=[0.11, 0.89]).item()
     elif bp_range == BP_RATING_HYPERTENSION_STAGE1:
-        return np.random.choice([True, False], p=[0.01, 0.99]).item()
-    elif bp_range == BP_RATING_NORMAL:
-        return np.random.choice([True, False], p=[0.08, 0.92]).item()
+        if hypertension_diagnosed:
+            return np.random.choice([True, False], p=[0.01, 0.99]).item()
+    #elif bp_range == BP_RATING_ELEVATED:
+    #    if hypertension_diagnosed:
+    #        return np.random.choice([True, False], p=[0.08, 0.92]).item()
 
-    return np.random.choice([True, False], p=[0.91, 0.09]).item()
+    return False
 
 
 def _calc_diabetes_medication(diabetes_diagnosed: bool, diabetes_risk_rating: str) -> bool:
@@ -491,8 +561,8 @@ def _calc_blood_pressure_risk_rating(bp_systolic: float, bp_diastolic: float) ->
 
 
 def do_the_do():
-    manager = Manager()
-    result_list = manager.list()
+    #manager = Manager()
+    #result_list = manager.list()
 
     cores = 4
     total_samples = 15_000
